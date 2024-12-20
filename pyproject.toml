@@ -1,0 +1,40 @@
+# This project was generated with 0.3.20 using template: https://github.com/beeware/briefcase-template@v0.3.20
+[tool.briefcase]
+project_name = "DIMPLEd"
+bundle = "com.dimpled"
+version = "0.0.1"
+url = "https://github.com/coywil26/DIMPLE"
+license.file = "LICENSE"
+author = "Christian B. Macdonald"
+author_email = "christian.macdonald@ucsf.edu"
+
+[tool.briefcase.app.dimpled]
+formal_name = "DIMPLEd"
+description = "DIMPLE app"
+long_description = """More details about the app should go here.
+"""
+icon = "icons/dimpled_icon"
+
+requires = [
+    "std-nslog==1.0.0",
+    "PyQt5",
+    "pydna",
+    "Bio",
+    "numpy",
+    "pandas",
+]
+test_requires = [
+    "pytest",
+]
+sources = [
+    "src/dimpled",
+]
+test_sources = [
+    "tests",
+]
+
+[tool.briefcase.app.dimpled.macOS]
+requires = [
+    "../../cocoa",
+    "std-nslog==1.0.0",
+]
