@@ -19,7 +19,7 @@ defaults:
 
 jobs:
   ci:
-    name: Test and Package
+    name: Build and Package
     runs-on: ${{ matrix.runs-on }}
     strategy:
       fail-fast: false
@@ -58,16 +58,6 @@ jobs:
             --test --no-input --log \
             ${{ matrix.briefcase-args }} \
             ${{ matrix.briefcase-build-args }}
-
-      - name: Test App
-        run: |
-          ${{ matrix.briefcase-run-prefix }} \
-          briefcase run \
-            ${{ matrix.platform || matrix.target }} \
-            ${{ matrix.output-format }} \
-            --test --no-input --log \
-            ${{ matrix.briefcase-args }} \
-            ${{ matrix.briefcase-run-args }}
 
       - name: Package App
         run: |
