@@ -35,6 +35,5 @@ test_sources = [
 
 [tool.briefcase.app.dimpled.macOS]
 requires = [
-    "../../cocoa",
     "std-nslog==1.0.0",
 ]
