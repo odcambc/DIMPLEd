@@ -13,7 +13,7 @@ formal_name = "DIMPLEd"
 description = "DIMPLE app"
 long_description = """More details about the app should go here.
 """
-icon = "icons/dimpled_icon"
+icon = "icons/dimpled"
 
 requires = [
     "std-nslog==1.0.0",
