@@ -2,7 +2,7 @@
 [tool.briefcase]
 project_name = "DIMPLEd"
 bundle = "com.dimpled"
-version = "0.0.1"
+version = "0.1"
 url = "https://github.com/coywil26/DIMPLE"
 license.file = "LICENSE"
 author = "Christian B. Macdonald"
@@ -34,6 +34,11 @@ test_sources = [
 ]
 
 [tool.briefcase.app.dimpled.macOS]
+requires = [
+    "std-nslog==1.0.0",
+]
+
+[tool.briefcase.app.dimpled.macOS.app]
 requires = [
     "std-nslog==1.0.0",
 ]

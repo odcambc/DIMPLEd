@@ -642,10 +642,12 @@ class DimpleApp(QMainWindow):
                     self.output_area.append(f"Start: {start + 1} and end: {end}")
                     if orf_length % 3 != 0:
                         self.output_area.append(
-                            "Warning: ORF length is not a multiple of 3."
+                            "Warning: ORF length is not a multiple of 3. Check start and end positions."
                         )
+                    else:
+                        self.output_area.append("ORF translation: " + str(gene.seq[start:end].translate()))
                 else:
-                    self.output_area.append("No start and end positions specified.")
+                    self.output_area.append("No start and end positions specified. Will attempt to detect ORF.")
 
         return gene_list
 
