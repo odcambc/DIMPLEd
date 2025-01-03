@@ -6,7 +6,7 @@ from pathlib import Path
 from .DIMPLE.DIMPLE import (
     print_all,
     post_qc,
-    addgene,
+    addgene_sequence_list,
     DIMPLE,
     generate_DMS_fragments,
 )
@@ -27,6 +27,8 @@ from PyQt5.QtWidgets import (
     QCheckBox,
     QTextEdit,
     QFileDialog,
+    QMessageBox,
+    QInputDialog,
 )
 from Bio import SeqIO
 from Bio.Seq import Seq
@@ -491,6 +493,7 @@ class DimpleApp(QMainWindow):
             self.output_dir_label.setText(f"Output directory: {directory}")
             self.output_area.append(f"Output directory selected: {directory}")
 
+    # TODO: this should be a text entry instead of file selection
     def select_custom_codon_usage(self):
         file_name, _ = QFileDialog.getOpenFileName(self, "Custom codon usage")
         if file_name:
@@ -589,6 +592,7 @@ class DimpleApp(QMainWindow):
             except ValueError:
                 errors.append("Invalid restriction sequence specified.")
 
+        # TODO: this should be a text entry instead of file selection
         if self.custom_usage.isChecked():
             if not hasattr(self, "custom_codon_file"):
                 errors.append("Custom codon usage file not selected.")
@@ -616,6 +620,8 @@ class DimpleApp(QMainWindow):
         # If start and end are specified, print them.
         # Check whether the start and end positions are a proper ORF.
 
+        dimple_gene_list = []
+
         with open(file_name, "r") as file:
             try:
                 gene_list = list(SeqIO.parse(file, "fasta"))
@@ -639,17 +645,134 @@ class DimpleApp(QMainWindow):
                     end = int(gene.description.split("end:")[1].split(" ")[0])
                     orf_length = end - start
 
-                    self.output_area.append(f"Start: {start + 1} and end: {end}")
+                    self.output_area.append(
+                        f"Fasta has ORF defined: start: {start + 1} and end: {end}"
+                    )
                     if orf_length % 3 != 0:
                         self.output_area.append(
                             "Warning: ORF length is not a multiple of 3. Check start and end positions."
                         )
                     else:
-                        self.output_area.append("ORF translation: " + str(gene.seq[start:end].translate()))
+                        self.output_area.append(
+                            "ORF translation: " + str(gene.seq[start:end].translate())
+                        )
                 else:
-                    self.output_area.append("No start and end positions specified. Will attempt to detect ORF.")
+                    self.output_area.append(
+                        "No start and end positions specified. Will attempt to detect ORF."
+                    )
+                    start = None
+                    end = None
 
-        return gene_list
+                # Open a new window containing the gene sequence and translation for the user
+                # to confirm it is correct.
+
+                confirmed_orf = self.confirm_orf(gene, start, end)
+
+                if confirmed_orf:
+                    dimple_gene_list.append(confirmed_orf)
+                    short_translation = (
+                        str(
+                            confirmed_orf["gene"]
+                            .seq[confirmed_orf["start"] : confirmed_orf["end"]]
+                            .translate()[:10]
+                        )
+                        + "..."
+                        + str(
+                            confirmed_orf["gene"]
+                            .seq[confirmed_orf["start"] : confirmed_orf["end"]]
+                            .translate()[-10:]
+                        )
+                    )
+                    self.output_area.append(
+                        f"Gene {gene.id} included in DIMPLE run.\n"
+                        f"Start: {confirmed_orf['start'] + 1} End: {confirmed_orf['end']}\n"
+                        f"ORF translation: {short_translation}"
+                    )
+                else:
+                    self.output_area.append(f"Gene {gene.id} excluded from DIMPLE run.")
+                    continue
+
+        return dimple_gene_list
+
+    def confirm_orf(self, gene, start, end):
+        if start is not None and end is not None:
+            translation = gene.seq[start:end].translate()
+            # Starting and ending 10 amino acids of the translation
+            if len(translation) < 20:
+                short_translation = translation
+            else:
+                short_translation = translation[:10] + "..." + translation[-10:]
+            # Ask the user to confirm the ORF translation
+            message = (
+                f"Input gene ORF detected: {gene.name}.\n"
+                f"Start: {start + 1} Stop: {end}\n"
+                f"ORF translation: {short_translation}\n\n"
+                f"Is this correct?"
+            )
+            response = QMessageBox.question(
+                self,
+                "Yes",
+                message,
+                QMessageBox.Yes | QMessageBox.No | QMessageBox.Cancel,
+            )
+        else:
+            message = "The input fasta does not contain ORF coordinates.\n\nDo you want to define them?"
+            response = QMessageBox.question(
+                self,
+                "Missing Elements",
+                message,
+                QMessageBox.Yes | QMessageBox.No | QMessageBox.Cancel,
+            )
+
+        if response == QMessageBox.Yes:
+            return {"gene": gene, "start": start, "end": end}
+        elif response == QMessageBox.No:
+            self.output_area.append(f"Updating ORF coordinates for gene {gene.id}.")
+            return self.define_orf(gene, start, end)
+        else:
+            self.output_area.append(f"Gene {gene.id} skipped.")
+            return None
+
+    def define_orf(self, gene, start, end):
+        # Let the user redefine the start and stop if necessary
+        start, ok_start = QInputDialog.getInt(
+            self, "Define Start", "Enter start coordinate:", value=(start) or 1
+        )
+        if not ok_start:
+            # Write to the output area if the user cancels the redefinition
+            self.output_area.append(f"Start redefinition for gene {gene.id} canceled.")
+            return None
+        else:
+            start = start - 1
+
+        end, ok_end = QInputDialog.getInt(
+            self, "Define End", "Enter end coordinate:", value=end or 0
+        )
+        if not ok_end:
+            self.output_area.append(f"End redefinition for gene {gene.id} canceled.")
+            return None
+
+        # ORF length must be a multiple of 3
+        if (end - start) % 3 != 0:
+            self.output_area.append(
+                f"ORF length for gene {gene.id} is not a multiple of 3. Please redefine."
+            )
+            return None
+
+        # Check and display the updated ORF translation
+        translation = gene.seq[start:end].translate()
+        short_translation = (
+            str(translation[:10]) + "..." + str(translation[-10:])
+            if len(translation) > 20
+            else str(translation)
+        )
+        self.output_area.append(
+            f"Updated coordinates for {gene.id}:\n"
+            f"Start: {start + 1} Stop: {end}\n"
+            f"ORF translation: {short_translation}"
+        )
+
+        return {"gene": gene, "start": start, "end": end}
 
     def parse_restriction_sequence(self, restriction_sequence):
         # Parse the restriction sequence and return the cutsite, buffer, and return
@@ -679,7 +802,6 @@ class DimpleApp(QMainWindow):
 
         log_file = (
             Path(self.output_dir)
-            / "logs"
             / f"DIMPLE-{datetime.now().strftime('%Y-%m-%d-%s')}.log"
         )
         if not Path(log_file.parent).exists():
@@ -843,7 +965,7 @@ class DimpleApp(QMainWindow):
 
         try:
 
-            OLS = addgene(geneFile)
+            OLS = addgene_sequence_list(self.gene_list)
 
             generate_DMS_fragments(
                 OLS,

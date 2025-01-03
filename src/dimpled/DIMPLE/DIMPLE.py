@@ -66,6 +66,38 @@ def addgene(genefile, start=None, end=None):
             tmpOLS.append(DIMPLE(gene, start, end))
     return tmpOLS  # only return the class object itself if one gene is given
 
+def addgene_sequence_list(gene_list):
+    tmpOLS = []
+    for gene_dict in gene_list:
+        logger.info("Analyzing gene: " + gene_dict['gene'].name)
+        dimple_obj = addgene_sequence(gene_dict)
+        if dimple_obj:
+            tmpOLS.append(dimple_obj)
+        else:
+            logger.warning("No ORF found in gene: " + gene_dict['gene'].name)
+
+    return tmpOLS
+
+def addgene_sequence(gene_dict, start=None, end=None):
+    """Generate a list of DIMPLE classes from a fasta file containing genes."""
+    tmpgene = gene_dict['gene']
+    tmpgene.seq = tmpgene.seq.upper()
+
+    logger.info("Analyzing gene: " + tmpgene.name)
+
+    if gene_dict['start'] is not None and gene_dict['end'] is not None:
+        start = gene_dict['start']
+        end = gene_dict['end']
+        logger.info("Found start: " + str(start) + " and end: " + str(end))
+        logger.info("Inferred ORF sequence: " + str(tmpgene.seq[start:end]))
+        tmpgene.filename = "" # Filename is not used in DIMPLE class.
+        dimple_obj = DIMPLE(tmpgene, start, end)
+    else:
+        return None
+
+
+    return dimple_obj  # only return the class object itself if one gene is given
+
 
 class DIMPLE:
     """Class for generating indel mutagenic scanning libraries."""
